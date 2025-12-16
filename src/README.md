@@ -7,12 +7,19 @@ A super simple FastAPI application that allows students to view and sign up for 
 - View all available extracurricular activities
 - Sign up for activities
 
+## Persistence (SQLite)
+
+This project now supports SQLite-backed persistence using `sqlmodel`.
+
+- Database file: `activities.db` (created automatically)
+- Default location: project root (`./activities.db`)
+
 ## Getting Started
 
 1. Install the dependencies:
 
    ```
-   pip install fastapi uvicorn
+   pip install -r ../requirements.txt
    ```
 
 2. Run the application:
@@ -21,9 +28,19 @@ A super simple FastAPI application that allows students to view and sign up for 
    python app.py
    ```
 
+   The app will initialize the database and seed default activities on first run.
+
 3. Open your browser and go to:
    - API documentation: http://localhost:8000/docs
    - Alternative documentation: http://localhost:8000/redoc
+
+## Testing
+
+Run tests with `pytest` from the repository root. Tests use temporary SQLite files to avoid touching the main DB.
+
+```bash
+pytest
+```
 
 ## API Endpoints
 

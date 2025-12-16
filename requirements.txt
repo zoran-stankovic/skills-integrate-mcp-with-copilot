@@ -1,2 +1,11 @@
+```pip-requirements
+fastapi
+uvicorn
+sqlmodel
+pytest
+httpx
+pytest-asyncio
+
+```
 fastapi
 uvicorn

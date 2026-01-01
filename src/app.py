@@ -5,11 +5,13 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from typing import List, Dict, Optional
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+import json
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -18,6 +20,40 @@ app = FastAPI(title="Mergington High School API",
 current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                # Handle cases where connection might be closed but not yet removed
+                pass
+
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection open and wait for messages (though we mainly broadcast)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 # In-memory activity database
 activities = {
@@ -107,6 +143,16 @@ def signup_for_activity(activity_name: str, email: str):
 
     # Add student
     activity["participants"].append(email)
+
+    # Broadcast update
+    await manager.broadcast({
+        "type": "signup",
+        "activity": activity_name,
+        "email": email,
+        "participants_count": len(activity["participants"]),
+        "max_participants": activity["max_participants"]
+    })
+
     return {"message": f"Signed up {email} for {activity_name}"}
 
 
@@ -129,4 +175,59 @@ def unregister_from_activity(activity_name: str, email: str):
 
     # Remove student
     activity["participants"].remove(email)
+
+    # Broadcast update
+    await manager.broadcast({
+        "type": "unregister",
+        "activity": activity_name,
+        "email": email,
+        "participants_count": len(activity["participants"]),
+        "max_participants": activity["max_participants"]
+    })
+
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+@app.post("/activities")
+async def create_activity(name: str, description: str, schedule: str, max_participants: int):
+    """Create a new activity"""
+    if name in activities:
+        raise HTTPException(status_code=400, detail="Activity already exists")
+
+    activities[name] = {
+        "description": description,
+        "schedule": schedule,
+        "max_participants": max_participants,
+        "participants": []
+    }
+
+    await manager.broadcast({
+        "type": "activity_created",
+        "name": name,
+        "details": activities[name]
+    })
+
+    return {"message": f"Activity {name} created"}
+
+
+@app.patch("/activities/{activity_name}")
+async def update_activity(activity_name: str, description: Optional[str] = None, schedule: Optional[str] = None, max_participants: Optional[int] = None):
+    """Update an activity"""
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    activity = activities[activity_name]
+    if description:
+        activity["description"] = description
+    if schedule:
+        activity["schedule"] = schedule
+    if max_participants:
+        activity["max_participants"] = max_participants
+
+    await manager.broadcast({
+        "type": "activity_updated",
+        "name": activity_name,
+        "details": activity
+    })
+
+    return {"message": f"Activity {activity_name} updated"}

@@ -155,6 +155,53 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // WebSocket connection
+  let socket = null;
+  let reconnectInterval = 1000;
+  const maxReconnectInterval = 30000;
+
+  function connectWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    console.log(`Connecting to WebSocket: ${wsUrl}`);
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log("WebSocket connected");
+      reconnectInterval = 1000; // Reset backoff
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("Real-time update received:", data);
+
+      // Refresh the activities list when any update occurs
+      fetchActivities();
+    };
+
+    socket.onclose = (e) => {
+      console.log(
+        `WebSocket closed: ${e.reason}. Reconnecting in ${
+          reconnectInterval / 1000
+        }s...`
+      );
+      setTimeout(() => {
+        reconnectInterval = Math.min(
+          reconnectInterval * 2,
+          maxReconnectInterval
+        );
+        connectWebSocket();
+      }, reconnectInterval);
+    };
+
+    socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
+      socket.close();
+    };
+  }
+
   // Initialize app
   fetchActivities();
+  connectWebSocket();
 });

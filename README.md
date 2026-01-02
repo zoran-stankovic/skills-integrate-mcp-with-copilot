@@ -33,5 +33,45 @@
 
 ---
 
+## 🐳 Docker Setup
+
+This project includes complete Docker support for both development and production environments.
+
+### Quick Start with Docker
+
+**Prerequisites:** Docker and Docker Compose installed
+
+**Development (with hot-reload):**
+```bash
+docker-compose up app-dev
+```
+
+**Production:**
+```bash
+docker-compose up app-prod
+```
+
+**With Nginx reverse proxy:**
+```bash
+docker-compose --profile prod up
+```
+
+The application will be available at:
+- Development: `http://localhost:8000`
+- Production: `http://localhost:8001`
+- API Docs: `http://localhost:8000/docs`
+
+### Docker Files Included
+
+- `Dockerfile` - Production-optimized multi-stage build
+- `Dockerfile.dev` - Development image with hot-reload
+- `docker-compose.yml` - Service orchestration
+- `nginx.conf` - Reverse proxy configuration
+- `DOCKER.md` - Comprehensive Docker documentation
+
+For detailed Docker setup, configuration, and deployment instructions, see [DOCKER.md](DOCKER.md).
+
+---
+
 &copy; 2025 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)
 
